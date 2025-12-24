@@ -39,7 +39,7 @@ echo "   ↳ Serveur lancé (PID: $SERVER_PID)"
 # 6. Lancement de Ngrok
 echo "🌍 Démarrage du tunnel Ngrok..."
 # On utilise > /dev/null car on va récupérer l'URL proprement via l'API locale de Ngrok
-nohup ngrok http 8000 > /dev/null 2>&1 &
+nohup ngrok http 8001 > /dev/null 2>&1 &
 
 # 7. ATTENTE ET AFFICHAGE DE L'URL (La partie magique)
 echo "⏳ Attente de la génération de l'URL..."
