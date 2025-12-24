@@ -113,7 +113,7 @@ async def stop_endpoint():
     # En Web, c'est le JS qui stop l'audio, mais on garde la route
     return {"status": "stopped"}
 
-@app.get("/status")
+@app.post("/status")
 async def status_endpoint():
     # Stateless
     return {"is_speaking": False}
