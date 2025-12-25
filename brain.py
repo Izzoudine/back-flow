@@ -15,7 +15,7 @@ class Brain:
         genai.configure(api_key=api_key)
 
         # Modèle : On utilise Flash 1.5 (Rapide + Multimodal Audio)
-        self.model_name = "gemini-1.5-flash"
+        self.model_name = "gemini-2.5-flash"
         
         # Variables d'état
         self.chat = None
