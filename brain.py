@@ -6,7 +6,10 @@ load_dotenv()
 
 class Brain:
     def __init__(self):
-        keys_str = os.getenv("GEMINI_API_KEYS") or os.getenv("GEMINI_API_KEY")
+        # Récupération de la clé API
+        # On cherche GEMINI_API_KEY ou GOOGLE_API_KEY
+        keys_str = os.getenv("GEMINI_API_KEY")
+        
         if not keys_str:
             print("🔴 ERREUR : Pas de clé API trouvée dans .env")
             self.api_keys = []
@@ -15,43 +18,80 @@ class Brain:
             
         self.current_key_index = 0
         self.history = [] 
-        self.system_prompt = "Tu es un assistant utile."
+        
+        # Instruction de base
+        self.persona_instruction = "Tu es un assistant utile."
         self.model = None
         self.chat = None
+        
+        # On utilise FLASH 1.5 : C'est le meilleur compromis Vitesse/Prix/Multimodal
         self.model_name = "gemini-2.5-flash"
+        
         self.init_model()
 
     def update_persona(self, name, scenario, behavior):
         """Met à jour l'identité de l'IA"""
-        self.system_prompt = f"""
+        self.persona_instruction = f"""
         Tu incarnes {name}.
         SCÉNARIO : {scenario}
         COMPORTEMENT : {behavior}
         
-        RÈGLES :
-        - Réponses conversationnelles et naturelles.
-        - Ne dis jamais que tu es une IA.
-        - Réponses courtes (1-2 phrases) sauf demande contraire.
+        RÈGLES IMPORTANTES :
+        - Tu es dans une conversation ORALE.
+        - Ne fais JAMAIS de listes à puces ou de formatage complexe (gras, italique).
+        - Fais des phrases courtes, claires et percutantes.
+        - Réagis directement à ce qu'on te dit (ou au ton de la voix).
         """
         print(f"🧠 Persona mise à jour : {name}")
         self.history = [] 
-        self.init_model() 
+        self.init_model()
 
     def init_model(self):
         if not self.api_keys: return
 
         genai.configure(api_key=self.api_keys[self.current_key_index])
         try:
-            # --- CORRECTION ICI : On utilise le modèle 1.5 Flash (Stable) ---
             self.model = genai.GenerativeModel(
-                model_name="gemini-2.5-flash", 
-                system_instruction=self.system_prompt
+                model_name=self.model_name, 
+                system_instruction=self.persona_instruction
             )
-            self.chat = self.model.start_chat(history=self.history)
-            print("🧠 Modèle Gemini 2.5 Flash Lite.")
+            # On garde un historique vide au début
+            self.chat = self.model.start_chat(history=[])
+            print(f"🧠 Cerveau prêt : {self.model_name}")
         except Exception as e:
             print(f"🔴 Erreur chargement modèle : {e}")
 
+    def think_from_audio(self, audio_path):
+        """
+        Reçoit un chemin de fichier audio (mp3/wav/webm),
+        L'envoie à Gemini pour qu'il l'écoute,
+        Et retourne la réponse textuelle.
+        """
+        try:
+            print(f"👂 Brain écoute le fichier : {audio_path}")
+            
+            # 1. Upload du fichier vers les serveurs Google (c'est très rapide)
+            # Note: Le mime_type peut être 'audio/mp3', 'audio/wav', 'audio/webm'
+            audio_file = genai.upload_file(path=audio_path)
+            
+            # 2. Génération de la réponse
+            # On envoie le fichier audio + le prompt système implicite (défini dans init_model)
+            response = self.model.generate_content([
+                "Écoute cet audio attentivement et réponds-moi en suivant ton persona.", 
+                audio_file
+            ])
+            
+            # 3. Nettoyage (Bonne pratique : on ne garde pas les fichiers chez Google)
+            # (Optionnel, Google les supprime auto après 48h, mais on peut le faire ici)
+            # genai.delete_file(audio_file.name)
+            
+            print(f"🧠 Réponse générée : {response.text[:50]}...")
+            return response.text
+
+        except Exception as e:
+            print(f"🔴 Erreur Brain Audio : {e}")
+            return "Désolé, je n'ai pas bien entendu. Peux-tu répéter ?"
+         
     def think_streaming(self, user_text):
         if not self.chat: return
         try:
