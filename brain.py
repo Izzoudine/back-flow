@@ -68,23 +68,27 @@ class Brain:
         try:
             print(f"👂 Brain écoute le fichier : {audio_path}")
             
-            # 1. Upload du fichier vers Google
-            audio_file = genai.upload_file(path=audio_path)
+            # --- CORRECTION ICI : On force le mime_type ---
+            audio_file = genai.upload_file(path=audio_path, mime_type="audio/webm")
             
-            # 2. ATTENTE ACTIVE (Correction Erreur 400)
-            # Gemini a besoin de 1-2 secondes pour traiter l'audio avant de pouvoir l'utiliser
             print("⏳ Attente du traitement audio par Google...")
+            
+            # Boucle d'attente (avec timeout de sécurité pour éviter le blocage infini)
+            wait_time = 0
             while audio_file.state.name == "PROCESSING":
                 time.sleep(1)
+                wait_time += 1
                 audio_file = genai.get_file(audio_file.name)
+                if wait_time > 10: 
+                    raise Exception("Timeout : Le traitement audio est trop long.")
             
+            # Si le statut est FAILED, on affiche la raison précise si dispo
             if audio_file.state.name != "ACTIVE":
-                raise Exception(f"Fichier audio refusé par Google : {audio_file.state.name}")
+                raise Exception(f"Fichier audio refusé par Google. Statut: {audio_file.state.name}")
 
-            # 3. Envoi dans le CHAT (pour garder la mémoire de la conversation)
-            # On envoie juste le fichier, l'instruction système est déjà chargée dans self.chat
+            print("✅ Audio prêt. Envoi au chat...")
+
             response = self.chat.send_message([audio_file])
-            
             text_response = response.text
             print(f"🧠 Réponse générée : {text_response[:50]}...")
             
@@ -92,8 +96,7 @@ class Brain:
 
         except Exception as e:
             print(f"🔴 Erreur Brain Audio : {e}")
-            return "Désolé, je n'ai pas bien entendu ce que tu as dit."
-
+            return "Désolé, j'ai eu un problème technique avec l'audio."
     def think_streaming(self, user_text):
         """Fonction de secours pour le chat textuel classique"""
         if not self.chat: return
