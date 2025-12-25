@@ -54,7 +54,16 @@ class Brain:
         print(f"🧠 Persona mise à jour : {name}")
         # On recharge le modèle pour appliquer la nouvelle instruction système
         self.init_model()
-
+    def think_text_only(self, user_text):
+        """Version ultra-rapide qui prend du texte au lieu de l'audio"""
+        try:
+            # On envoie directement le texte au chat (pas d'upload fichier)
+            response = self.chat.send_message(user_text)
+            return response.text
+        except Exception as e:
+            print(f"🔴 Erreur Chat Texte : {e}")
+            return "Désolé, une erreur technique."
+        
     def clear_history(self):
         """Efface la mémoire de la conversation (Pour le bouton STOP)"""
         print("🧹 Nettoyage de l'historique...")
