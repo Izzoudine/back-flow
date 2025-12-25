@@ -1,6 +1,8 @@
 import os
 import google.generativeai as genai
 from dotenv import load_dotenv
+import time
+
 
 load_dotenv()
 
@@ -56,22 +58,28 @@ class Brain:
 
     def think_from_audio(self, audio_path):
         """
-        Reçoit un fichier audio, l'envoie à Gemini dans le contexte du chat,
-        et retourne la réponse textuelle.
+        Reçoit un fichier audio, l'envoie à Gemini, ATTEND qu'il soit prêt,
+        et retourne la réponse.
         """
         try:
             print(f"👂 Brain écoute le fichier : {audio_path}")
             
-            # 1. Upload du fichier vers Google
-            # Note: Gemini Flash gère très bien les petits fichiers audio temporaires
+            # 1. Upload
             audio_file = genai.upload_file(path=audio_path)
             
-            # 2. Envoi dans le CHAT (pour garder la mémoire de la conversation)
-            # On envoie juste le fichier, l'instruction système est déjà chargée dans self.chat
-            response = self.chat.send_message([audio_file])
+            # 2. ATTENTE ACTIVE (C'est ça qui corrige ton erreur 400)
+            print("⏳ Attente du traitement audio par Google...")
+            while audio_file.state.name == "PROCESSING":
+                time.sleep(1)
+                audio_file = genai.get_file(audio_file.name)
             
-            # 3. Nettoyage (Optionnel mais propre)
-            # genai.delete_file(audio_file.name)
+            if audio_file.state.name != "ACTIVE":
+                raise Exception(f"Fichier audio refusé par Google : {audio_file.state.name}")
+
+            print("✅ Audio prêt. Envoi au chat...")
+
+            # 3. Envoi dans le CHAT
+            response = self.chat.send_message([audio_file])
             
             text_response = response.text
             print(f"🧠 Réponse générée : {text_response[:50]}...")
@@ -80,8 +88,7 @@ class Brain:
 
         except Exception as e:
             print(f"🔴 Erreur Brain Audio : {e}")
-            return "Désolé, je n'ai pas bien entendu ce que tu as dit."
-
+            return "Désolé, j'ai eu un problème technique avec l'audio."
     def think_streaming(self, user_text):
         """Fonction de secours pour le chat textuel classique"""
         if not self.chat: return
