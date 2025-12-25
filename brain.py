@@ -1,8 +1,7 @@
 import os
+import time  # <--- INDISPENSABLE pour attendre que l'audio soit prêt
 import google.generativeai as genai
 from dotenv import load_dotenv
-import time
-
 
 load_dotenv()
 
@@ -16,7 +15,7 @@ class Brain:
         genai.configure(api_key=api_key)
 
         # Modèle : On utilise Flash 1.5 (Rapide + Multimodal Audio)
-        self.model_name = "gemini-2.5-flash"
+        self.model_name = "gemini-1.5-flash"
         
         # Variables d'état
         self.chat = None
@@ -56,18 +55,24 @@ class Brain:
         # On recharge le modèle pour appliquer la nouvelle instruction système
         self.init_model()
 
+    def clear_history(self):
+        """Efface la mémoire de la conversation (Pour le bouton STOP)"""
+        print("🧹 Nettoyage de l'historique...")
+        self.init_model() # Le fait de réinit le modèle vide l'historique
+
     def think_from_audio(self, audio_path):
         """
         Reçoit un fichier audio, l'envoie à Gemini, ATTEND qu'il soit prêt,
-        et retourne la réponse.
+        et retourne la réponse textuelle.
         """
         try:
             print(f"👂 Brain écoute le fichier : {audio_path}")
             
-            # 1. Upload
+            # 1. Upload du fichier vers Google
             audio_file = genai.upload_file(path=audio_path)
             
-            # 2. ATTENTE ACTIVE (C'est ça qui corrige ton erreur 400)
+            # 2. ATTENTE ACTIVE (Correction Erreur 400)
+            # Gemini a besoin de 1-2 secondes pour traiter l'audio avant de pouvoir l'utiliser
             print("⏳ Attente du traitement audio par Google...")
             while audio_file.state.name == "PROCESSING":
                 time.sleep(1)
@@ -76,9 +81,8 @@ class Brain:
             if audio_file.state.name != "ACTIVE":
                 raise Exception(f"Fichier audio refusé par Google : {audio_file.state.name}")
 
-            print("✅ Audio prêt. Envoi au chat...")
-
-            # 3. Envoi dans le CHAT
+            # 3. Envoi dans le CHAT (pour garder la mémoire de la conversation)
+            # On envoie juste le fichier, l'instruction système est déjà chargée dans self.chat
             response = self.chat.send_message([audio_file])
             
             text_response = response.text
@@ -88,7 +92,8 @@ class Brain:
 
         except Exception as e:
             print(f"🔴 Erreur Brain Audio : {e}")
-            return "Désolé, j'ai eu un problème technique avec l'audio."
+            return "Désolé, je n'ai pas bien entendu ce que tu as dit."
+
     def think_streaming(self, user_text):
         """Fonction de secours pour le chat textuel classique"""
         if not self.chat: return
@@ -126,7 +131,6 @@ class Brain:
         
         try:
             # On utilise le modèle sans historique pour une analyse one-shot
-            # On peut réutiliser self.model ou en instancier un temporaire
             analysis_model = genai.GenerativeModel(
                 model_name=self.model_name,
                 system_instruction=analysis_instruction
