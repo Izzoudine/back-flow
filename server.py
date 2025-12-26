@@ -126,7 +126,7 @@ async def chat_audio_endpoint(audio_file: UploadFile = File(...)):
         print(f"🧠 [2] Gemini ({t_llm - t_stt:.2f}s) : {ai_response_text[:50]}...")
 
         # 4. Bouche (TTS)
-        audio_bytes = run_tts(ai_response_text)
+        audio_bytes = await run_tts(ai_response_text)
         
         t_tts = time.time()
         print(f"🔊 [3] TTS ({t_tts - t_llm:.2f}s)")

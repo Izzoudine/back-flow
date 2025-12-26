@@ -5,3 +5,4 @@ fastapi
 uvicorn
 deepgram-sdk==3.*
 python-multipart
+edge_tts
